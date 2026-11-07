@@ -1,32 +1,37 @@
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
- TIME_FORMAT = "%H:%M:%S,%f"
+TIME_FORMAT = "%H:%M:%S,%f"
 
-def normalize_subtitle_text(text: str) -> str:
-    """
-    Cleans subtitle text by removing redundant whitespace, HTML tags,
-    and normalizing punctuation spacing for TTS/voiceover alignment.
-    """
-    # Remove HTML styling tags like <i>, <b>, <font>
-    cleaned = re.sub(r"<[^>]+>", "", text)
-    # Remove multiple spaces
-    cleaned = re.sub(r"[ \t]+", " ", cleaned)
-    # Ensure no more than two lines per subtitle block
-    lines = [line.strip() for line in cleaned.split("\n") if line.strip()]
-    return "\n".join(lines)
+def parse_time(time_str):
+    return datetime.strptime(time_str.strip(), TIME_FORMAT)
 
-def fix_overlapping_timestamps(blocks):
-    """
-    Detects and resolves overlapping timestamps between consecutive subtitle blocks.
-    """
-    fixed_count = 0
-    for i in range(len(blocks) - 1):
-        current_end = datetime.strptime(blocks[i].end_time, TIME_FORMAT)
-        next_start = datetime.strptime(blocks[i + 1].start_time, TIME_FORMAT)
+def format_time(dt_obj):
+    return dt_obj.strftime(TIME_FORMAT)[:-3]
 
-        if current_end > next_start:
-            blocks[i].end_time = blocks[i + 1].start_time
-            fixed_count += 1
+def shift_time(time_str, offset_seconds):
+    dt = parse_time(time_str)
+    shifted = dt + timedelta(seconds=offset_seconds)
+    if shifted < datetime.strptime("00:00:00,000", TIME_FORMAT):
+        shifted = datetime.strptime("00:00:00,000", TIME_FORMAT)
+    return format_time(shifted)
 
-    return fixed_count
+def normalize_subtitle_text(text):
+    text = re.sub(r"<[^>]*>", "", text)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+def fix_overlapping_timestamps(cues):
+    fixed_cues = []
+    for i in range(len(cues)):
+        current = dict(cues[i])
+        if i > 0:
+            prev_end = parse_time(fixed_cues[i - 1]["end"])
+            curr_start = parse_time(current["start"])
+            if curr_start < prev_end:
+                current["start"] = format_time(prev_end + timedelta(milliseconds=50))
+                curr_end = parse_time(current["end"])
+                if parse_time(current["start"]) >= curr_end:
+                    current["end"] = format_time(parse_time(current["start"]) + timedelta(milliseconds=500))
+        fixed_cues.append(current)
+    return fixed_cues
