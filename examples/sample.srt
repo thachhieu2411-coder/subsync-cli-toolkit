@@ -1,0 +1,11 @@
+1
+00:00:01,000 --> 00:00:03,500
+Welcome to the automated subtitle synchronization demo.
+
+2
+00:00:03,200 --> 00:00:06,000
+This block has an overlapping timestamp with the previous one.
+
+3
+00:00:07,000 --> 00:00:10,200
+SubSync CLI toolkit cleans and aligns these cues automatically.
